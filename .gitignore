@@ -1,3 +1,7 @@
 # Evidências locais (não versionar por padrão)
 *.log
 snapshots/
+
+# Python
+__pycache__/
+*.pyc
