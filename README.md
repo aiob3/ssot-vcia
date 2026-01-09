@@ -40,11 +40,15 @@ Reference implementation: `runbook.json` checkpoint `ssot_init_params_acceptance
 ## Painel web local (HITL)
 Este repositório inclui um painel local (HTML + JS) com accordion (expand/collapse) para visualizar e **intervir** via GUI (HITL) usando os artefatos JSON.
 
-Rodar localmente:
-1. API (leitura/escrita idempotente/atômica):
-   - `python3 panel/server.py`  (http://127.0.0.1:8787)
-2. UI (estático):
-   - `python3 -m http.server 5500 --directory panel` (http://127.0.0.1:5500)
+Rodar localmente (2 processos):
+1. **API** (leitura/escrita idempotente/atômica):
+   - `python3 panel/server.py`  → http://127.0.0.1:8787
+2. **UI** (estático):
+   - `python3 -m http.server 5500 --directory panel` → http://127.0.0.1:5500
+
+Notas:
+- Se você abrir o HTML via `file://`, é comum o browser bloquear requisições (CORS). Use o `http.server` acima.
+- A UI (5500) chama a API (8787). A API inclui headers de CORS para permitir esse fluxo local.
 
 ## Como (re)carregar skills no Copilot CLI
 - `/skills reload`
