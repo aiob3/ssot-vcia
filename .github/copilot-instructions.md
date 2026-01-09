@@ -82,3 +82,33 @@ Campos esperados:
 ## Formato de resposta
 - Sempre entregar: **(a)** estado atual, **(b)** evidência coletada, **(c)** decisões pendentes (se houver), **(d)** próximos passos.
 - Ao pedir aprovação, fornecer opções **A/B/C** com prós/contras e riscos.
+
+## Quick Ops — Painel local (HITL)
+Execução local (2 processos):
+- Terminal 1 (API):
+  - `export SSOT_PANEL_PORT=8787` (opcional)
+  - `python3 panel/server.py` → http://127.0.0.1:8787
+- Terminal 2 (UI):
+  - `python3 -m http.server 5500 --directory panel` → http://127.0.0.1:5500
+
+Notas:
+- Evite abrir via `file://` (CORS). Use o `http.server`.
+- A UI (5500) chama a API (8787). A API permite CORS local.
+
+## API — Endpoints e contratos (referência rápida)
+- `GET /api/project-panel` → `project-panel.json`
+- `GET /api/runbook` → `runbook.json`
+- `GET /api/init-params` → conteúdo raw de `init-params.xml`
+
+Operações do operador (HITL):
+- Preferencial (agrupado / “fim da sessão”): `POST /api/interventions/apply`
+  - Gera um marcador idempotente `intervention_id` persistido em `project-panel.json.interventions[]`.
+  - Coliga mudanças (notes/decisions/milestones) por `intervention_id` para reancoragem do agente.
+- Diretas (unitárias):
+  - `POST /api/operator-notes` (required: `id`, `priority`, `message`, `timestamp`; aceita `intervention_id` opcional)
+  - `POST /api/runbook/decisions` (required: `id`, `scope`, `change_summary`, `reason`, `approved_by`, `timestamp`, `atomic_unit`, `idempotency_note`; aceita `intervention_id` opcional)
+  - `POST /api/project-panel/milestones/upsert` (update in-place por `id`; recomenda-se usar via sessão para coligação)
+
+Regras:
+- IDs são idempotentes: reusar o mesmo `id` resulta em no-op (append `false`).
+- Não introduzir novos campos top-level nos JSONs sem alinhamento explícito com o operador.
