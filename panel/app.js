@@ -306,6 +306,8 @@ document.getElementById('decisionForm').addEventListener('submit', async (ev) =>
     return;
   }
 
+  // Prevent accidental resubmission of the same decision payload.
+  ev.target.reset();
   await loadAll();
 });
 
@@ -343,8 +345,12 @@ if (milestoneFormEl) {
       return;
     }
 
-    // Clear typed id to prefer select after save, but keep selection.
+    // Clear typed id and other fields to avoid stale data on next save.
     if (milestoneIdInputEl) milestoneIdInputEl.value = '';
+    if (milestoneStatusEl) milestoneStatusEl.value = '';
+    if (milestoneSummaryEl) milestoneSummaryEl.value = '';
+    if (milestoneEvidenceEl) milestoneEvidenceEl.value = '';
+    if (milestoneDateEl) milestoneDateEl.value = '';
     await loadAll();
   });
 }
