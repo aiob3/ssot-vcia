@@ -28,6 +28,47 @@ Seu objetivo é entregar resultados **reproduzíveis**, **auditáveis** e **segu
 - Manter/atualizar um **runbook técnico** (JSON) e um **painel humano** (JSON).
 - Para execução humana: gerar checklist em **.md** e capturar evidência em **.log**.
 
+## Contrato de dados (SSOT) — JSONs do painel
+Este projeto é SSOT-first e o **contrato de dados** é parte do SSOT. O objetivo é evitar deriva: o agente publica progresso de forma estruturada e o operador intervém somente nos campos previstos.
+
+### Papéis e responsabilidades (HITL)
+- **Agente → Humano (feed):** publica/atualiza progresso e evidências em `project-panel.json` e mantém rastreabilidade técnica em `runbook.json`.
+- **Operador (HITL) → incrementos:** interage em tempo real **apenas** com:
+  - `project-panel.json.milestones[]` (edição **in-place** por `id`)
+  - `project-panel.json.operator_notes[]` (append-only, idempotente por `id`)
+  - `runbook.json.decisions[]` (append-only, idempotente por `id`)
+  - `project-panel.json.decisions_pending[]` (fila **read-only** / atenção; sem automação)
+
+### `project-panel.json` (painel humano: andamento do agente)
+Campos esperados:
+- **`ssot`**: string (caminho do SSOT ativo)
+- **`milestones[]`**: lista de milestones (incremento/gestão)
+  - **`id`**: string (chave do milestone; estável)
+  - **`status`**: string (ex.: `pending`, `in_progress`, `done`)
+  - **`summary`**: string
+  - **`evidence`**: string (referência curta: checkpoint, arquivo, log)
+  - **`date`**: string (`YYYY-MM-DD`)
+- **`decisions_pending[]`**: lista (fila de atenção; conteúdo livre, mas preferir objetos com `scope`, `message`, `timestamp`)
+- **`evidences[]`**: lista de evidências agregadas (ex.: `{date, item}`)
+- **`operator_notes[]`**: lista de notas do operador (append-only; idempotente por `id`)
+
+Regras:
+- `milestones[]`: **update in-place** por `id` (não duplicar `id`).
+- Não inventar novos campos sem registrar/alinhar com o operador (HITL).
+
+### `runbook.json` (runbook técnico: base das ações)
+Campos esperados:
+- **`ssot`**: string
+- **`constraints[]`**: lista de strings
+- **`steps[]`**: lista (texto curto do que foi feito/planejado)
+- **`checkpoints[]`**: lista (cada checkpoint com `id`, `title`, e metadados relevantes)
+- **`decisions[]`**: lista de decisões (incremento do operador; append-only; idempotente por `id`)
+
+### Invariantes (DRY/KISS/YAGNI)
+- **Atomicidade:** cada alteração deve ser pequena e com propósito único.
+- **Idempotência:** re-aplicar o mesmo incremento não deve duplicar nem gerar efeitos colaterais.
+- **Semântica acima de UI:** a UI apenas reflete a hierarquia do JSON; o JSON é a fonte.
+
 ## Skills (adoção replicável)
 - Skills do projeto: `./.github/skills/<skill>/SKILL.md`.
 - Skills pessoais (fallback): `~/.copilot/skills/<skill>/SKILL.md`.
