@@ -4,6 +4,9 @@ const runbookRawEl = document.getElementById('runbookRaw');
 const refreshBtn = document.getElementById('refresh');
 const toggleAllBtn = document.getElementById('toggleAll');
 const notesEl = document.getElementById('notes');
+const milestonesEl = document.getElementById('milestones');
+const decisionsEl = document.getElementById('decisions');
+const decisionsPendingEl = document.getElementById('decisionsPending');
 
 const API = location.origin.endsWith(':5500') || location.origin.includes('file:')
   ? 'http://127.0.0.1:8787'
@@ -41,6 +44,75 @@ function renderNotes(projectPanel) {
     .join('');
 }
 
+function renderMilestones(projectPanel) {
+  if (!milestonesEl) return;
+  const milestones = projectPanel.milestones || [];
+  milestonesEl.innerHTML = milestones
+    .slice()
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    .map(m => {
+      return `
+      <div class="note">
+        <div class="meta">
+          <span><strong>${escapeHtml(m.status || 'unknown')}</strong></span>
+          <span>${escapeHtml(m.date || '')}</span>
+          <span>${escapeHtml(m.id || '')}</span>
+        </div>
+        <div class="msg">${escapeHtml(m.summary || '')}</div>
+        ${m.evidence ? `<div class="muted" style="margin-top: 6px; font-size: 11px;">Evidence: ${escapeHtml(m.evidence)}</div>` : ''}
+      </div>`;
+    })
+    .join('');
+}
+
+function renderDecisions(runbook) {
+  if (!decisionsEl) return;
+  const decisions = runbook.decisions || [];
+  decisionsEl.innerHTML = decisions
+    .slice()
+    .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))
+    .map(d => {
+      return `
+      <div class="note">
+        <div class="meta">
+          <span><strong>${escapeHtml(d.scope || '')}</strong></span>
+          <span>${escapeHtml(d.timestamp || '')}</span>
+          <span>${escapeHtml(d.id || '')}</span>
+          <span>approved by: ${escapeHtml(d.approved_by || '')}</span>
+        </div>
+        <div class="msg">
+          <strong>Change:</strong> ${escapeHtml(d.change_summary || '')}<br>
+          <strong>Reason:</strong> ${escapeHtml(d.reason || '')}<br>
+          <strong>Atomic unit:</strong> ${escapeHtml(d.atomic_unit || '')}<br>
+          <strong>Idempotency:</strong> ${escapeHtml(d.idempotency_note || '')}
+        </div>
+      </div>`;
+    })
+    .join('');
+}
+
+function renderDecisionsPending(projectPanel) {
+  if (!decisionsPendingEl) return;
+  const pending = projectPanel.decisions_pending || [];
+  if (pending.length === 0) {
+    decisionsPendingEl.innerHTML = '<div class="muted">No pending decisions</div>';
+    return;
+  }
+  decisionsPendingEl.innerHTML = pending
+    .map(d => {
+      return `
+      <div class="note">
+        <div class="meta">
+          <span><strong>PENDING</strong></span>
+          ${d.scope ? `<span>scope=${escapeHtml(d.scope)}</span>` : ''}
+          ${d.timestamp ? `<span>${escapeHtml(d.timestamp)}</span>` : ''}
+        </div>
+        <div class="msg">${escapeHtml(JSON.stringify(d, null, 2))}</div>
+      </div>`;
+    })
+    .join('');
+}
+
 async function loadAll() {
   try {
     const [ppRes, rbRes] = await Promise.all([
@@ -58,6 +130,9 @@ async function loadAll() {
     projectPanelRawEl.textContent = JSON.stringify(projectPanel, null, 2);
     runbookRawEl.textContent = JSON.stringify(runbook, null, 2);
     renderNotes(projectPanel);
+    renderMilestones(projectPanel);
+    renderDecisions(runbook);
+    renderDecisionsPending(projectPanel);
 
     setStatus(true, 'connected');
   } catch (e) {

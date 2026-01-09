@@ -40,25 +40,93 @@ Reference implementation: `runbook.json` checkpoint `ssot_init_params_acceptance
 ## Painel web local (HITL)
 Este repositório inclui um painel local (HTML + JS) com accordion (expand/collapse) para visualizar e **intervir** via GUI (HITL) usando os artefatos JSON.
 
-Rodar localmente (2 processos):
-1. **API** (leitura/escrita idempotente/atômica):
-   - `python panel/server.py`  → http://127.0.0.1:8787
-2. **UI** (estático):
-   - `python -m http.server 5500 --directory panel` → http://127.0.0.1:5500
+### Como operar o painel
 
-Comando completo para validação local
+O painel requer **2 processos simultâneos** rodando em terminais separados:
 
+#### Terminal 1: API Server
 ```powershell
- git pull
- python panel/server.py
- # em outro terminal
- python -m http.server 5500 --directory panel
- # abrir: http://127.0.0.1:5500
+# Navegar para o diretório do projeto
+cd "H:\Meu Drive\01_PROJECTS\ssot-vcia\ssot-vcia"
+
+# Iniciar o servidor API
+python panel/server.py
 ```
 
-Notas:
-- Se você abrir o HTML via `file://`, é comum o browser bloquear requisições (CORS). Use o `http.server` acima.
-- A UI (5500) chama a API (8787). A API inclui headers de CORS para permitir esse fluxo local.
+**Resultado esperado:**
+```
+SSOT panel API running on http://127.0.0.1:8787
+```
+
+**Mantenha este terminal aberto.** O servidor ficará rodando e processando requisições.
+
+#### Terminal 2: UI Server (HTTP Server)
+```powershell
+# Em um NOVO terminal, navegar para o diretório do projeto
+cd "H:\Meu Drive\01_PROJECTS\ssot-vcia\ssot-vcia"
+
+# Iniciar o servidor HTTP para servir a UI
+python -m http.server 5500 --directory panel
+```
+
+**Resultado esperado:**
+```
+Serving HTTP on 0.0.0.0 port 5500 (http://0.0.0.0:5500/) ...
+```
+
+**Mantenha este terminal aberto também.**
+
+#### Acessar o painel
+1. Abra seu navegador
+2. Acesse: **http://127.0.0.1:5500** ou **http://localhost:5500**
+3. O painel carregará automaticamente e mostrará:
+   - Status de conexão (deve aparecer "connected" em verde)
+   - Project Panel (JSON raw + visualização de Milestones)
+   - Runbook (JSON raw + visualização de Decisions)
+   - Operator Notes (formulário + lista de notas)
+   - Decisions (formulário + lista de decisões)
+   - Decisions Pending (lista de decisões pendentes)
+
+### Funcionalidades do painel
+
+**Visualização:**
+- **Project Panel**: Mostra `project-panel.json` completo (JSON raw) + Milestones renderizados
+- **Runbook**: Mostra `runbook.json` completo (JSON raw) + Decisions renderizados
+- **Milestones**: Lista visual de milestones com status, data, resumo e evidências
+- **Decisions**: Lista visual de decisões com scope, timestamp, mudanças e razões
+- **Decisions Pending**: Lista de decisões que precisam de atenção
+
+**Interação HITL:**
+- **Operator Notes**: Adicione notas com prioridade (P1/P2/P3) e scope opcional
+- **Add Decision**: Registre decisões HITL com todos os campos obrigatórios (id, scope, change_summary, reason, atomic_unit, idempotency_note, approved_by, timestamp)
+
+**Atualização automática:**
+- O painel atualiza automaticamente a cada 2 segundos (polling)
+- Use o botão "Refresh" para atualização manual
+- Use "Toggle all accordions" para expandir/colapsar todas as seções
+
+### Troubleshooting
+
+**Problema: Status mostra "disconnected"**
+- Verifique se o Terminal 1 (API) está rodando na porta 8787
+- Verifique se o Terminal 2 (UI) está rodando na porta 5500
+- Verifique se não há firewall bloqueando as portas
+
+**Problema: Erro CORS no navegador**
+- **NÃO** abra o arquivo HTML diretamente via `file://`
+- **SEMPRE** use o servidor HTTP (`python -m http.server 5500 --directory panel`)
+- O servidor HTTP é necessário para evitar bloqueios de CORS
+
+**Problema: Porta já em uso**
+- Se a porta 8787 estiver ocupada, defina: `$env:SSOT_PANEL_PORT="8788"` (PowerShell)
+- Se a porta 5500 estiver ocupada, use outra: `python -m http.server 5501 --directory panel`
+- Atualize a URL no navegador para a nova porta
+
+### Notas importantes
+- Os dados são salvos **atomicamente** (escrita atômica com arquivo temporário)
+- Operações são **idempotentes** (repetir a mesma operação não causa efeitos colaterais)
+- Todas as mudanças são registradas nos arquivos JSON (`project-panel.json` e `runbook.json`)
+- O painel é **somente leitura** para JSON raw, mas permite **adicionar** notes e decisions via formulários
 
 ## Como (re)carregar skills no Copilot CLI
 - `/skills reload`
