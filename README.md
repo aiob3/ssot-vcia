@@ -42,9 +42,19 @@ Este repositório inclui um painel local (HTML + JS) com accordion (expand/colla
 
 Rodar localmente (2 processos):
 1. **API** (leitura/escrita idempotente/atômica):
-   - `python3 panel/server.py`  → http://127.0.0.1:8787
+   - `python panel/server.py`  → http://127.0.0.1:8787
 2. **UI** (estático):
-   - `python3 -m http.server 5500 --directory panel` → http://127.0.0.1:5500
+   - `python -m http.server 5500 --directory panel` → http://127.0.0.1:5500
+
+Comando completo para validação local
+
+```powershell
+ git pull
+ python panel/server.py
+ # em outro terminal
+ python -m http.server 5500 --directory panel
+ # abrir: http://127.0.0.1:5500
+```
 
 Notas:
 - Se você abrir o HTML via `file://`, é comum o browser bloquear requisições (CORS). Use o `http.server` acima.
