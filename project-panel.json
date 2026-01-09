@@ -3,7 +3,7 @@
   "milestones": [
     {
       "id": "init-params-acceptance-tests",
-      "status": "done",
+      "status": "in_progress",
       "summary": "Defined SSOT_INIT_PARAMS acceptance tests (EN) to reduce ambiguity and support smaller/cheaper models.",
       "evidence": "runbook.json checkpoint ssot_init_params_acceptance",
       "date": "2026-01-09"

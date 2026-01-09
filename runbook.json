@@ -3,7 +3,18 @@
   "constraints": [
     "SSOT_INIT_PARAMS must remain small, stable, machine-readable, atomic, and idempotent; changes require explicit HITL record."
   ],
-  "decisions": [],
+  "decisions": [
+    {
+      "id": "DEC-20260109-CLIENTEZERO",
+      "scope": "SSOT_INIT_PARAMS",
+      "change_summary": "Cliente zero: teste de reset do form de decisions",
+      "reason": "Evitar reenvio acidental e reduzir confusão pós-submit",
+      "atomic_unit": "Reset do form após submit ok",
+      "idempotency_note": "Repetir o mesmo id deve ser no-op (API idempotente por id)",
+      "approved_by": "operator",
+      "timestamp": "2026-01-09T03:30:00Z"
+    }
+  ],
   "steps": [
     "Defined acceptance tests (EN) for SSOT_INIT_PARAMS to reduce ambiguity and support smaller/cheaper models."
   ],
@@ -73,10 +84,24 @@
           "overall": "pass",
           "notes": "Baseline validation after adding SSOT_INIT_PARAMS + acceptance tests. No XML change performed in this run; governance tests pass by vacuity.",
           "tests": [
-            {"id": "AT-1", "status": "pass"},
-            {"id": "AT-2", "status": "pass", "notes": "No SSOT_INIT_PARAMS change in this run (no decision entry required)."},
-            {"id": "AT-3", "status": "pass"},
-            {"id": "AT-4", "status": "pass", "notes": "No change performed; idempotency/atomicity requirements apply to future edits."}
+            {
+              "id": "AT-1",
+              "status": "pass"
+            },
+            {
+              "id": "AT-2",
+              "status": "pass",
+              "notes": "No SSOT_INIT_PARAMS change in this run (no decision entry required)."
+            },
+            {
+              "id": "AT-3",
+              "status": "pass"
+            },
+            {
+              "id": "AT-4",
+              "status": "pass",
+              "notes": "No change performed; idempotency/atomicity requirements apply to future edits."
+            }
           ]
         }
       ]
