@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 PROJECT_PANEL_PATH = os.path.join(REPO_ROOT, "project-panel.json")
 RUNBOOK_PATH = os.path.join(REPO_ROOT, "runbook.json")
+INIT_PARAMS_PATH = os.path.join(REPO_ROOT, "init-params.xml")
 
 
 def _read_json(path: str):
@@ -114,6 +115,21 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, _read_json(RUNBOOK_PATH))
             return
 
+        if path == "/api/init-params":
+            with open(INIT_PARAMS_PATH, "r", encoding="utf-8") as f:
+                xml = f.read()
+            body = xml.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/xml; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "content-type")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         self._send_text(404, "Not found")
 
     def do_POST(self):
@@ -126,6 +142,7 @@ class Handler(BaseHTTPRequestHandler):
                 # This is an operator increment over project-panel.json.milestones.
                 _require_fields(payload, ["id"])
                 allowed_keys = ["status", "summary", "evidence", "date"]
+                intervention_id = str(payload.get("intervention_id", "")).strip()
 
                 pp = _read_json(PROJECT_PANEL_PATH)
                 _ensure_list(pp, "milestones")
@@ -156,6 +173,9 @@ class Handler(BaseHTTPRequestHandler):
                             changed = True
 
                 if changed:
+                    if intervention_id:
+                        milestone["last_intervention_id"] = intervention_id
+                        milestone["updated_at"] = _now_iso()
                     _write_json_atomic(PROJECT_PANEL_PATH, pp)
 
                 self._send_json(
@@ -182,6 +202,7 @@ class Handler(BaseHTTPRequestHandler):
                     "scope": str(payload.get("scope", "")).strip(),
                     "message": str(payload["message"]).strip(),
                     "timestamp": str(payload["timestamp"]).strip(),
+                    "intervention_id": str(payload.get("intervention_id", "")).strip(),
                 }
 
                 appended = _idempotent_append_by_id(pp["operator_notes"], note)
@@ -217,12 +238,131 @@ class Handler(BaseHTTPRequestHandler):
                     "idempotency_note": str(payload["idempotency_note"]).strip(),
                     "approved_by": str(payload["approved_by"]).strip(),
                     "timestamp": str(payload["timestamp"]).strip(),
+                    "intervention_id": str(payload.get("intervention_id", "")).strip(),
                 }
 
                 appended = _idempotent_append_by_id(rb["decisions"], decision)
                 if appended:
                     _write_json_atomic(RUNBOOK_PATH, rb)
                 self._send_json(200, {"status": "ok", "appended": appended, "timestamp": _now_iso()})
+                return
+
+            if path == "/api/interventions/apply":
+                _require_fields(payload, ["intervention_id", "started_at", "ended_at"])
+                intervention_id = str(payload["intervention_id"]).strip()
+                started_at = str(payload["started_at"]).strip()
+                ended_at = str(payload["ended_at"]).strip()
+                operator = str(payload.get("operator", "operator")).strip() or "operator"
+                ops = payload.get("operations", {}) if isinstance(payload.get("operations", {}), dict) else {}
+
+                pp = _read_json(PROJECT_PANEL_PATH)
+                rb = _read_json(RUNBOOK_PATH)
+                _ensure_list(pp, "interventions")
+                _ensure_list(pp, "operator_notes")
+                _ensure_list(pp, "milestones")
+                _ensure_list(rb, "decisions")
+
+                if any(str(x.get("id", "")).strip() == intervention_id for x in pp["interventions"]):
+                    self._send_json(200, {"status": "ok", "appended": False, "timestamp": _now_iso()})
+                    return
+
+                notes = ops.get("operator_notes", []) if isinstance(ops.get("operator_notes", []), list) else []
+                decisions = ops.get("decisions", []) if isinstance(ops.get("decisions", []), list) else []
+                milestones = ops.get("milestones_upserts", []) if isinstance(ops.get("milestones_upserts", []), list) else []
+
+                notes_appended = 0
+                for n in notes:
+                    if not isinstance(n, dict):
+                        continue
+                    _require_fields(n, ["id", "priority", "message", "timestamp"])
+                    n = {
+                        "id": str(n["id"]).strip(),
+                        "priority": str(n["priority"]).strip(),
+                        "scope": str(n.get("scope", "")).strip(),
+                        "message": str(n["message"]).strip(),
+                        "timestamp": str(n["timestamp"]).strip(),
+                        "intervention_id": intervention_id,
+                    }
+                    if _idempotent_append_by_id(pp["operator_notes"], n):
+                        notes_appended += 1
+
+                decisions_appended = 0
+                for d in decisions:
+                    if not isinstance(d, dict):
+                        continue
+                    _require_fields(
+                        d,
+                        [
+                            "id",
+                            "scope",
+                            "change_summary",
+                            "reason",
+                            "approved_by",
+                            "timestamp",
+                            "atomic_unit",
+                            "idempotency_note",
+                        ],
+                    )
+                    _validate_atomic_and_idempotent_fields(d)
+                    d = {
+                        "id": str(d["id"]).strip(),
+                        "scope": str(d["scope"]).strip(),
+                        "change_summary": str(d["change_summary"]).strip(),
+                        "reason": str(d["reason"]).strip(),
+                        "atomic_unit": str(d["atomic_unit"]).strip(),
+                        "idempotency_note": str(d["idempotency_note"]).strip(),
+                        "approved_by": str(d["approved_by"]).strip(),
+                        "timestamp": str(d["timestamp"]).strip(),
+                        "intervention_id": intervention_id,
+                    }
+                    if _idempotent_append_by_id(rb["decisions"], d):
+                        decisions_appended += 1
+
+                milestones_changed = 0
+                for m in milestones:
+                    if not isinstance(m, dict):
+                        continue
+                    _require_fields(m, ["id"])
+                    milestone_id = str(m["id"]).strip()
+                    milestone = None
+                    for existing in pp["milestones"]:
+                        if str(existing.get("id", "")).strip() == milestone_id:
+                            milestone = existing
+                            break
+                    if milestone is None:
+                        milestone = {"id": milestone_id}
+                        pp["milestones"].append(milestone)
+
+                    changed = False
+                    for k in ["status", "summary", "evidence", "date"]:
+                        if k in m and str(m.get(k, "")).strip():
+                            new_val = str(m.get(k, "")).strip()
+                            if str(milestone.get(k, "")).strip() != new_val:
+                                milestone[k] = new_val
+                                changed = True
+                    if changed:
+                        milestone["last_intervention_id"] = intervention_id
+                        milestone["updated_at"] = ended_at
+                        milestones_changed += 1
+
+                _idempotent_append_by_id(
+                    pp["interventions"],
+                    {
+                        "id": intervention_id,
+                        "started_at": started_at,
+                        "ended_at": ended_at,
+                        "operator": operator,
+                        "counts": {
+                            "notes_appended": notes_appended,
+                            "decisions_appended": decisions_appended,
+                            "milestones_changed": milestones_changed,
+                        },
+                    },
+                )
+
+                _write_json_atomic(PROJECT_PANEL_PATH, pp)
+                _write_json_atomic(RUNBOOK_PATH, rb)
+                self._send_json(200, {"status": "ok", "appended": True, "timestamp": _now_iso()})
                 return
 
             self._send_text(404, "Not found")

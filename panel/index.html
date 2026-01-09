@@ -17,6 +17,27 @@
 
     <main class="container">
       <section class="grid">
+        <div class="muted sectionLabel">Cockpit (SSOT) — leitura orientada</div>
+
+        <details open class="card">
+          <summary>Init Params (init-params.xml) — âncora do protocolo</summary>
+          <div class="content">
+            <div id="initParams" class="notes"></div>
+          </div>
+        </details>
+
+        <details open class="card">
+          <summary>Sessão de intervenção (HITL) — marcador idempotente</summary>
+          <div class="content">
+            <div class="row">
+              <code id="sessionStatus" class="muted">no session</code>
+              <button id="startSession">Iniciar intervenção</button>
+              <button id="endSession" disabled>Finalizar e salvar</button>
+            </div>
+            <small class="muted">Ao finalizar, é gravado um marcador em project-panel.json.interventions e todas as ações ficam coligadas por intervention_id.</small>
+          </div>
+        </details>
+
         <div class="muted sectionLabel">Feed do Agente → Humano (somente leitura)</div>
         <details open class="card">
           <summary>Project Panel (project-panel.json) — feed do agente</summary>

@@ -9,6 +9,10 @@ const decisionsEl = document.getElementById('decisions');
 const decisionsPendingEl = document.getElementById('decisionsPending');
 const runbookStepsEl = document.getElementById('runbookSteps');
 const runbookCheckpointsEl = document.getElementById('runbookCheckpoints');
+const initParamsEl = document.getElementById('initParams');
+const sessionStatusEl = document.getElementById('sessionStatus');
+const startSessionBtn = document.getElementById('startSession');
+const endSessionBtn = document.getElementById('endSession');
 
 const milestoneFormEl = document.getElementById('milestoneForm');
 const milestoneIdSelectEl = document.getElementById('milestoneIdSelect');
@@ -36,6 +40,57 @@ function escapeHtml(s) {
 
 let lastProjectPanelCompact = null;
 let lastRunbookCompact = null;
+let lastInitParamsCompact = null;
+
+let session = null; // { id, startedAt, ops: { operator_notes:[], decisions:[], milestones_upserts:[] } }
+
+function renderSession() {
+  if (!sessionStatusEl || !startSessionBtn || !endSessionBtn) return;
+  if (!session) {
+    sessionStatusEl.textContent = 'no session';
+    startSessionBtn.disabled = false;
+    endSessionBtn.disabled = true;
+    return;
+  }
+  const counts = session.ops.operator_notes.length + session.ops.decisions.length + session.ops.milestones_upserts.length;
+  sessionStatusEl.textContent = `active ${session.id} (${counts} queued)`;
+  startSessionBtn.disabled = true;
+  endSessionBtn.disabled = false;
+}
+
+function parseInitParamsXml(xmlText) {
+  try {
+    const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+    const root = doc.querySelector('SSOT_INIT_PARAMS');
+    if (!root) return null;
+    const tags = ['ORIGEM','INTENCAO_IMUTABILIDADE','EDICAO','REGRA_AGENTE','ITERACAO'];
+    const out = {};
+    for (const t of tags) {
+      const el = root.querySelector(t);
+      out[t] = (el?.textContent || '').trim();
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+function renderInitParams(xmlText) {
+  if (!initParamsEl) return;
+  const parsed = parseInitParamsXml(xmlText);
+  if (!parsed) {
+    initParamsEl.innerHTML = '<div class="muted">Falha ao parsear init-params.xml</div>';
+    return;
+  }
+  initParamsEl.innerHTML = Object.entries(parsed)
+    .map(([k, v]) => `
+      <div class="note">
+        <div class="meta"><span><strong>${escapeHtml(k)}</strong></span></div>
+        <div class="msg">${escapeHtml(v)}</div>
+      </div>
+    `)
+    .join('');
+}
 
 function renderNotes(projectPanel) {
   const notes = projectPanel.operator_notes || [];
@@ -50,6 +105,7 @@ function renderNotes(projectPanel) {
           <span>${escapeHtml(n.timestamp || '')}</span>
           <span>${escapeHtml(n.id || '')}</span>
           ${n.scope ? `<span>scope=${escapeHtml(n.scope)}</span>` : ''}
+          ${n.intervention_id ? `<span>ivn=${escapeHtml(n.intervention_id)}</span>` : ''}
         </div>
         <div class="msg">${escapeHtml(n.message || '')}</div>
       </div>`;
@@ -133,6 +189,7 @@ function renderDecisions(runbook) {
           <span>${escapeHtml(d.timestamp || '')}</span>
           <span>${escapeHtml(d.id || '')}</span>
           <span>approved by: ${escapeHtml(d.approved_by || '')}</span>
+          ${d.intervention_id ? `<span>ivn=${escapeHtml(d.intervention_id)}</span>` : ''}
         </div>
         <div class="msg">
           <strong>Change:</strong> ${escapeHtml(d.change_summary || '')}<br>
@@ -216,23 +273,27 @@ function renderRunbookCheckpoints(runbook) {
 
 async function loadAll() {
   try {
-    const [ppRes, rbRes] = await Promise.all([
+    const [ppRes, rbRes, ipRes] = await Promise.all([
       fetch(`${API}/api/project-panel`),
       fetch(`${API}/api/runbook`),
+      fetch(`${API}/api/init-params`),
     ]);
 
-    if (!ppRes.ok || !rbRes.ok) {
-      throw new Error(`HTTP ${ppRes.status}/${rbRes.status}`);
+    if (!ppRes.ok || !rbRes.ok || !ipRes.ok) {
+      throw new Error(`HTTP ${ppRes.status}/${rbRes.status}/${ipRes.status}`);
     }
 
     const projectPanel = await ppRes.json();
     const runbook = await rbRes.json();
+    const initParamsXml = await ipRes.text();
 
     const ppCompact = JSON.stringify(projectPanel);
     const rbCompact = JSON.stringify(runbook);
+    const ipCompact = String(initParamsXml || '');
 
     const ppChanged = ppCompact !== lastProjectPanelCompact;
     const rbChanged = rbCompact !== lastRunbookCompact;
+    const ipChanged = ipCompact !== lastInitParamsCompact;
 
     if (ppChanged) {
       lastProjectPanelCompact = ppCompact;
@@ -240,6 +301,11 @@ async function loadAll() {
       renderNotes(projectPanel);
       renderMilestones(projectPanel);
       renderDecisionsPending(projectPanel);
+    }
+
+    if (ipChanged) {
+      lastInitParamsCompact = ipCompact;
+      renderInitParams(initParamsXml);
     }
 
     if (rbChanged) {
@@ -273,6 +339,13 @@ document.getElementById('noteForm').addEventListener('submit', async (ev) => {
     timestamp: new Date().toISOString(),
   };
 
+  if (session) {
+    session.ops.operator_notes.push(payload);
+    renderSession();
+    ev.target.reset();
+    return;
+  }
+
   const res = await fetch(`${API}/api/operator-notes`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -293,6 +366,13 @@ document.getElementById('decisionForm').addEventListener('submit', async (ev) =>
   ev.preventDefault();
   const fd = new FormData(ev.target);
   const payload = Object.fromEntries(fd.entries());
+
+  if (session) {
+    session.ops.decisions.push(payload);
+    renderSession();
+    ev.target.reset();
+    return;
+  }
 
   const res = await fetch(`${API}/api/runbook/decisions`, {
     method: 'POST',
@@ -332,6 +412,18 @@ if (milestoneFormEl) {
     if (summary) payload.summary = summary;
     if (evidence) payload.evidence = evidence;
     if (date) payload.date = date;
+
+    if (session) {
+      session.ops.milestones_upserts.push(payload);
+      renderSession();
+      // Clear typed id and other fields to avoid stale data on next save.
+      if (milestoneIdInputEl) milestoneIdInputEl.value = '';
+      if (milestoneStatusEl) milestoneStatusEl.value = '';
+      if (milestoneSummaryEl) milestoneSummaryEl.value = '';
+      if (milestoneEvidenceEl) milestoneEvidenceEl.value = '';
+      if (milestoneDateEl) milestoneDateEl.value = '';
+      return;
+    }
 
     const res = await fetch(`${API}/api/project-panel/milestones/upsert`, {
       method: 'POST',
@@ -374,6 +466,45 @@ if (milestoneIdSelectEl) {
   });
 }
 
+function startInterventionSession() {
+  session = {
+    id: makeId('IVN'),
+    startedAt: new Date().toISOString(),
+    ops: { operator_notes: [], decisions: [], milestones_upserts: [] },
+  };
+  renderSession();
+}
+
+async function endInterventionSession() {
+  if (!session) return;
+  const payload = {
+    intervention_id: session.id,
+    started_at: session.startedAt,
+    ended_at: new Date().toISOString(),
+    operator: 'operator',
+    operations: session.ops,
+  };
+
+  const res = await fetch(`${API}/api/interventions/apply`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    alert(`Failed: ${res.status}\n${txt}`);
+    return;
+  }
+
+  session = null;
+  renderSession();
+  await loadAll();
+}
+
+if (startSessionBtn) startSessionBtn.addEventListener('click', startInterventionSession);
+if (endSessionBtn) endSessionBtn.addEventListener('click', endInterventionSession);
+
 refreshBtn.addEventListener('click', loadAll);
 
 toggleAllBtn.addEventListener('click', () => {
@@ -383,5 +514,6 @@ toggleAllBtn.addEventListener('click', () => {
 });
 
 // Simple polling for "near-real-time" updates.
+renderSession();
 setInterval(loadAll, 2000);
 loadAll();

@@ -23,15 +23,15 @@
       "id": "ssot_init_params_acceptance",
       "title": "SSOT_INIT_PARAMS acceptance tests",
       "language": "en",
-      "scope": "README.md",
+      "scope": "init-params.xml",
       "tests": [
         {
           "id": "AT-1",
           "name": "Parseability",
           "must_pass": true,
           "pass_criteria": [
-            "README contains exactly one fenced code block labeled 'xml'",
-            "Code block contains exactly one <SSOT_INIT_PARAMS> root",
+            "init-params.xml exists",
+            "File contains exactly one <SSOT_INIT_PARAMS> root",
             "Required tags exist and are non-empty: ORIGEM, INTENCAO_IMUTABILIDADE, EDICAO, REGRA_AGENTE, ITERACAO"
           ]
         },
@@ -65,8 +65,8 @@
         }
       ],
       "how_to_run": [
-        "Manual: inspect README.md for the fenced xml block and required tags.",
-        "Manual: after any edit to the XML block, append a decision entry under runbook.decisions with required fields."
+        "Manual: inspect init-params.xml for the SSOT_INIT_PARAMS root and required tags.",
+        "Manual: after any edit to init-params.xml, append a decision entry under runbook.decisions with required fields."
       ],
       "decision_entry_template": {
         "id": "DEC-YYYYMMDD-HHMM-SSOTINIT",
