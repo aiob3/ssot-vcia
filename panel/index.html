@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SSOT VCIA Panel</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>SSOT VCIA Panel</h1>
+      <div class="row">
+        <code id="status">disconnected</code>
+        <button id="refresh">Refresh</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="grid">
+        <details open class="card">
+          <summary>Project Panel (project-panel.json)</summary>
+          <div class="content">
+            <pre id="projectPanelRaw" class="pre"></pre>
+          </div>
+        </details>
+
+        <details class="card">
+          <summary>Runbook (runbook.json)</summary>
+          <div class="content">
+            <pre id="runbookRaw" class="pre"></pre>
+          </div>
+        </details>
+
+        <details open class="card">
+          <summary>Operator Notes (HITL)</summary>
+          <div class="content">
+            <form id="noteForm" class="form">
+              <label>
+                Priority
+                <select name="priority">
+                  <option value="P1">P1</option>
+                  <option value="P2" selected>P2</option>
+                  <option value="P3">P3</option>
+                </select>
+              </label>
+              <label>
+                Scope (optional)
+                <input name="scope" placeholder="e.g. SSOT_INIT_PARAMS" />
+              </label>
+              <label>
+                Note
+                <textarea name="message" rows="4" required placeholder="Operator intervention / attention point"></textarea>
+              </label>
+              <div class="row">
+                <button type="submit">Add note</button>
+                <small class="muted">Notes are appended atomically; re-submitting the same ID is idempotent.</small>
+              </div>
+            </form>
+
+            <div class="row">
+              <button id="toggleAll">Toggle all accordions</button>
+            </div>
+
+            <div>
+              <h3>Notes</h3>
+              <div id="notes" class="notes"></div>
+            </div>
+          </div>
+        </details>
+
+        <details class="card">
+          <summary>Add Decision (runbook.json.decisions)</summary>
+          <div class="content">
+            <form id="decisionForm" class="form">
+              <label>
+                id
+                <input name="id" placeholder="DEC-YYYYMMDD-HHMM-..." required />
+              </label>
+              <label>
+                scope
+                <input name="scope" value="SSOT_INIT_PARAMS" required />
+              </label>
+              <label>
+                change_summary
+                <textarea name="change_summary" rows="2" required></textarea>
+              </label>
+              <label>
+                reason
+                <textarea name="reason" rows="2" required></textarea>
+              </label>
+              <label>
+                atomic_unit
+                <input name="atomic_unit" required placeholder="Single atomic unit of change" />
+              </label>
+              <label>
+                idempotency_note
+                <textarea name="idempotency_note" rows="2" required></textarea>
+              </label>
+              <label>
+                approved_by
+                <input name="approved_by" value="operator" required />
+              </label>
+              <label>
+                timestamp (ISO 8601)
+                <input name="timestamp" placeholder="2026-01-09T00:00:00Z" required />
+              </label>
+              <button type="submit">Append decision</button>
+              <small class="muted">Server enforces required fields + idempotent insert by id.</small>
+            </form>
+          </div>
+        </details>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

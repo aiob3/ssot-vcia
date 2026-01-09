@@ -37,6 +37,15 @@ Reference implementation: `runbook.json` checkpoint `ssot_init_params_acceptance
 3. Se houver desvio do SSOT ou necessidade de ação extra, abrir **decisão HITL** e solicitar aprovação.
 4. Só então **MODIFICAR**, registrando evidências.
 
+## Painel web local (HITL)
+Este repositório inclui um painel local (HTML + JS) com accordion (expand/collapse) para visualizar e **intervir** via GUI (HITL) usando os artefatos JSON.
+
+Rodar localmente:
+1. API (leitura/escrita idempotente/atômica):
+   - `python3 panel/server.py`  (http://127.0.0.1:8787)
+2. UI (estático):
+   - `python3 -m http.server 5500 --directory panel` (http://127.0.0.1:5500)
+
 ## Como (re)carregar skills no Copilot CLI
 - `/skills reload`
 - Se necessário: `/skills add ./.github/skills`

@@ -15,5 +15,6 @@
       "date": "2026-01-09",
       "item": "README.md includes SSOT_INIT_PARAMS (xml code block) + acceptance tests section; runbook.json includes checkpoint ssot_init_params_acceptance."
     }
-  ]
+  ],
+  "operator_notes": []
 }
