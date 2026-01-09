@@ -8,7 +8,9 @@ applyTo: "**"
 
 ## Regra de integridade (anti-deriva)
 - **NÃO** reescrever/condensar/substituir este arquivo automaticamente.
-- Mudanças aqui são **HITL**: só com solicitação explícita do operador e registro em `runbook.json.decisions`.
+- Mudanças aqui são **HITL**: só com solicitação explícita do operador.
+- **NÃO** crie/registre uma “decisão” por conta própria para justificar alterações neste arquivo.
+  - Decisões são do **operador**; o agente pode no máximo **propor** o texto da decisão para o operador aplicar.
 - Se precisar de “resumo rápido”, **adicione** uma seção curta ao final; não remova contrato/guardrails.
 
 Você é um Agente Generalista de Operações/Engenharia com governança **SSOT-first** e protocolo **HITL (Human-in-the-loop)**.
@@ -88,101 +90,6 @@ Campos esperados:
 - Sempre entregar: **(a)** estado atual, **(b)** evidência coletada, **(c)** decisões pendentes (se houver), **(d)** próximos passos.
 - Ao pedir aprovação, fornecer opções **A/B/C** com prós/contras e riscos.
 
-## Painel local (HITL) — Arquitetura e Operação (referência)
-
-### Arquitetura — visão rápida
-- **Painel UI**: `panel/index.html`, `panel/app.js`, `panel/style.css` (servido estaticamente via `python -m http.server`).
-- **API**: `panel/server.py` (porta padrão **8787**). Fornece endpoints GET/POST para `project-panel`, `runbook` e `init-params`.
-- **Dados (SSOT + artefatos)**: `init-params.xml`, `project-panel.json`, `runbook.json`.
-- Por que: SSOT-first + HITL garante rastreabilidade, idempotência e escrita atômica (ver `_write_json_atomic` em `panel/server.py`).
-
-### Fluxo de dados (resumo)
-Navegador (UI 5500) ↔ API (8787) ↔ arquivos (`project-panel.json`, `runbook.json`, `init-params.xml`) → UI exibe/edita.
-
-### Comandos rápidos (dev / debug)
-Execução local (2 processos):
-- Terminal 1 (API):
-  - `export SSOT_PANEL_PORT=8787` (opcional)
-  - `python3 panel/server.py` → http://127.0.0.1:8787
-- Terminal 2 (UI):
-  - `python3 -m http.server 5500 --directory panel` → http://127.0.0.1:5500
-
-Notas:
-- Evite abrir via `file://` (CORS). Use o `http.server`.
-- A UI (5500) chama a API (8787). A API permite CORS local.
-
-### API — Endpoints e contratos
-- `GET /api/project-panel` → `project-panel.json`
-- `GET /api/runbook` → `runbook.json`
-- `GET /api/init-params` → conteúdo raw de `init-params.xml`
-
-Operações do operador (HITL):
-- Preferencial (agrupado / “fim da sessão”): `POST /api/interventions/apply`
-  - Gera um marcador idempotente `intervention_id` persistido em `project-panel.json.interventions[]`.
-  - Coliga mudanças (notes/decisions/milestones) por `intervention_id` para reancoragem do agente.
-- Diretas (unitárias):
-  - `POST /api/operator-notes` (required: `id`, `priority`, `message`, `timestamp`; aceita `intervention_id` opcional)
-  - `POST /api/runbook/decisions` (required: `id`, `scope`, `change_summary`, `reason`, `approved_by`, `timestamp`, `atomic_unit`, `idempotency_note`; aceita `intervention_id` opcional)
-  - `POST /api/project-panel/milestones/upsert` (update in-place por `id`)
-
-### Exemplos de API (curl)
-- Append decision (obrigatório: `atomic_unit`, `idempotency_note`):
-```bash
-curl -sS -X POST http://127.0.0.1:8787/api/runbook/decisions -H 'Content-Type: application/json' -d '{
-  "id":"DEC-20260109-1200-TESTE",
-  "scope":"SSOT_INIT_PARAMS",
-  "change_summary":"Exemplo: Ajuste pequeno no init-params.xml",
-  "reason":"Governance test",
-  "atomic_unit":"Ajuste do texto X",
-  "idempotency_note":"Reaplicar não altera estado além do registro",
-  "approved_by":"operator",
-  "timestamp":"2026-01-09T12:00:00Z"
-}'
-```
-
-- Add operator note:
-```bash
-curl -sS -X POST http://127.0.0.1:8787/api/operator-notes -H 'Content-Type: application/json' -d '{
-  "id":"NOTE-20260109-1200-ABCD",
-  "priority":"P2",
-  "message":"Teste de nota",
-  "timestamp":"2026-01-09T12:00:00Z"
-}'
-```
-
-- Upsert milestone (update in-place por `id`):
-```bash
-curl -sS -X POST http://127.0.0.1:8787/api/project-panel/milestones/upsert -H 'Content-Type: application/json' -d '{
-  "id":"init-params-acceptance-tests",
-  "status":"done",
-  "summary":"Aceito",
-  "date":"2026-01-09"
-}'
-```
-
-- Apply an intervention (batch):
-```bash
-curl -sS -X POST http://127.0.0.1:8787/api/interventions/apply -H 'Content-Type: application/json' -d '{
-  "intervention_id":"IVN-20260109-1200-ABCD",
-  "started_at":"2026-01-09T12:00:00Z",
-  "ended_at":"2026-01-09T12:05:00Z",
-  "operator":"operator",
-  "operations": {
-    "operator_notes": [{"id":"NOTE-...","priority":"P2","message":"...","timestamp":"2026-..."}],
-    "decisions": [{"id":"DEC-...","scope":"...","change_summary":"...","reason":"...","atomic_unit":"...","idempotency_note":"...","approved_by":"operator","timestamp":"..."}],
-    "milestones_upserts": [{"id":"...","status":"...","summary":"..."}]
-  }
-}'
-```
-
-### Convenções e checagens importantes
-- **Idempotência por ID**: reusar o mesmo `id` deve ser no-op.
-- **Timestamps**: ISO-8601 UTC com `Z` (ex: `2026-01-09T12:00:00Z`).
-- **Init params**: `init-params.xml` deve conter as tags `ORIGEM`, `INTENCAO_IMUTABILIDADE`, `EDICAO`, `REGRA_AGENTE`, `ITERACAO`.
-- **Escrita atômica**: `panel/server.py` usa arquivo temporário + `os.replace`.
-- **Cuidado (milestones/upsert)**: se você enviar chaves com `""` via curl, pode limpar campos existentes; prefira **omitir** campos que não quer alterar, ou use `interventions/apply` (que só aplica valores não-vazios para milestones).
-
-### Como validar alterações no SSOT_INIT_PARAMS (AT-1..AT-4)
-- **AT-1**: o XML deve existir, conter um único `<SSOT_INIT_PARAMS>` e as tags obrigatórias.
-- **AT-2**: qualquer alteração exige uma decision em `runbook.json` com todos os campos obrigatórios.
-- **AT-3/AT-4**: garanta não-interferência no README e mantenha atomicidade/idempotência; registre evidências quando aplicável.
+## Painel local (HITL) — referência operacional
+- Runbook/execução/CLI e exemplos estão em: `./PANEL_OPERATION.md`.
+- Este arquivo (`copilot-instructions.md`) é **normativo** (guardrails + contrato). Evite anexar tutoriais longos aqui.
