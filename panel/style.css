@@ -21,3 +21,4 @@ button:hover{ filter:brightness(1.05); }
 .note .meta{ display:flex; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:12px; }
 .note .msg{ margin-top:6px; white-space:pre-wrap; }
 code{ background:#0e1523; border:1px solid var(--border); padding:4px 6px; border-radius:8px; }
+.sectionLabel{ padding-top:8px; border-top:1px dashed var(--border); }

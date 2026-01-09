@@ -17,24 +17,98 @@
 
     <main class="container">
       <section class="grid">
+        <div class="muted sectionLabel">Feed do Agente → Humano (somente leitura)</div>
         <details open class="card">
-          <summary>Project Panel (project-panel.json)</summary>
+          <summary>Project Panel (project-panel.json) — feed do agente</summary>
           <div class="content">
             <pre id="projectPanelRaw" class="pre"></pre>
           </div>
         </details>
 
         <details class="card">
-          <summary>Runbook (runbook.json)</summary>
+          <summary>Runbook (runbook.json) — feed técnico (read-only)</summary>
           <div class="content">
             <pre id="runbookRaw" class="pre"></pre>
           </div>
         </details>
 
         <details open class="card">
-          <summary>Operator Notes (HITL)</summary>
+          <summary>Decisions Pending (project-panel.json.decisions_pending) — fila de atenção</summary>
           <div class="content">
-            <form id="noteForm" class="form">
+            <div id="decisionsPending" class="notes"></div>
+          </div>
+        </details>
+
+        <details class="card">
+          <summary>Runbook Steps/Checkpoints — ações do agente</summary>
+          <div class="content">
+            <div class="row">
+              <small class="muted">Visão rápida baseada em runbook.json.steps e runbook.json.checkpoints</small>
+            </div>
+            <div>
+              <h3>Steps</h3>
+              <div id="runbookSteps" class="notes"></div>
+            </div>
+            <div style="margin-top: 10px;">
+              <h3>Checkpoints</h3>
+              <div id="runbookCheckpoints" class="notes"></div>
+            </div>
+          </div>
+        </details>
+
+        <div class="muted sectionLabel">Incrementos do Operador (HITL) — interação</div>
+
+        <details class="card">
+          <summary>Milestones (project-panel.json.milestones) — editar por id</summary>
+          <div class="content">
+            <form id="milestoneForm" class="form">
+              <label>
+                id
+                <div class="row">
+                  <select id="milestoneIdSelect" name="id">
+                    <option value="" selected>(selecionar existente)</option>
+                  </select>
+                  <input id="milestoneIdInput" name="id_input" placeholder="ou digitar id" />
+                </div>
+              </label>
+              <label>
+                status
+                <input id="milestoneStatus" name="status" placeholder="e.g. pending|in_progress|done" />
+              </label>
+              <label>
+                summary
+                <textarea id="milestoneSummary" name="summary" rows="2"></textarea>
+              </label>
+              <label>
+                evidence
+                <input id="milestoneEvidence" name="evidence" placeholder="e.g. runbook.json checkpoint ..." />
+              </label>
+              <label>
+                date
+                <input id="milestoneDate" name="date" placeholder="YYYY-MM-DD" />
+              </label>
+              <div class="row">
+                <button type="submit">Save milestone</button>
+                <small class="muted">Update in-place por id (cria se não existir). Escrita atômica.</small>
+              </div>
+            </form>
+
+            <div style="margin-top: 10px;">
+              <h3>Milestones</h3>
+              <div id="milestones" class="notes"></div>
+            </div>
+          </div>
+        </details>
+
+        <details open class="card">
+          <summary>Operator Notes (HITL) — incrementos do operador</summary>
+          <div class="content">
+            <div class="row">
+              <button id="toggleAll">Toggle all accordions</button>
+              <small class="muted">Refresh/status ficam no topo (header)</small>
+            </div>
+
+            <form id="noteForm" class="form" style="margin-top: 10px;">
               <label>
                 Priority
                 <select name="priority">
@@ -53,15 +127,11 @@
               </label>
               <div class="row">
                 <button type="submit">Add note</button>
-                <small class="muted">Notes are appended atomically; re-submitting the same ID is idempotent.</small>
+                <small class="muted">Append-only, idempotente por ID.</small>
               </div>
             </form>
 
-            <div class="row">
-              <button id="toggleAll">Toggle all accordions</button>
-            </div>
-
-            <div>
+            <div style="margin-top: 10px;">
               <h3>Notes</h3>
               <div id="notes" class="notes"></div>
             </div>
@@ -69,7 +139,7 @@
         </details>
 
         <details class="card">
-          <summary>Add Decision (runbook.json.decisions)</summary>
+          <summary>Decisions (runbook.json.decisions) — incrementos do operador</summary>
           <div class="content">
             <form id="decisionForm" class="form">
               <label>
@@ -104,30 +174,12 @@
                 timestamp (ISO 8601)
                 <input name="timestamp" placeholder="2026-01-09T00:00:00Z" required />
               </label>
-              <button type="submit">Append decision</button>
-              <small class="muted">Server enforces required fields + idempotent insert by id.</small>
+              <div class="row">
+                <button type="submit">Append decision</button>
+                <small class="muted">Append-only, idempotente por ID.</small>
+              </div>
             </form>
-          </div>
-        </details>
-
-        <details class="card">
-          <summary>Milestones (project-panel.json.milestones)</summary>
-          <div class="content">
-            <div id="milestones" class="notes"></div>
-          </div>
-        </details>
-
-        <details class="card">
-          <summary>Decisions (runbook.json.decisions)</summary>
-          <div class="content">
             <div id="decisions" class="notes"></div>
-          </div>
-        </details>
-
-        <details class="card">
-          <summary>Decisions Pending (project-panel.json.decisions_pending)</summary>
-          <div class="content">
-            <div id="decisionsPending" class="notes"></div>
           </div>
         </details>
       </section>

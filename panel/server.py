@@ -121,6 +121,55 @@ class Handler(BaseHTTPRequestHandler):
         try:
             payload = self._read_body_json()
 
+            if path == "/api/project-panel/milestones/upsert":
+                # Update milestone by id (in-place). If not found, create it.
+                # This is an operator increment over project-panel.json.milestones.
+                _require_fields(payload, ["id"])
+                allowed_keys = ["status", "summary", "evidence", "date"]
+
+                pp = _read_json(PROJECT_PANEL_PATH)
+                _ensure_list(pp, "milestones")
+
+                milestone_id = str(payload["id"]).strip()
+                milestone = None
+                for m in pp["milestones"]:
+                    if str(m.get("id", "")).strip() == milestone_id:
+                        milestone = m
+                        break
+
+                created = False
+                changed = False
+
+                if milestone is None:
+                    milestone = {"id": milestone_id}
+                    pp["milestones"].append(milestone)
+                    created = True
+                    changed = True
+
+                # Apply updates (allow clearing values by sending empty strings).
+                for k in allowed_keys:
+                    if k in payload:
+                        new_val = str(payload.get(k, ""))
+                        old_val = str(milestone.get(k, ""))
+                        if new_val != old_val:
+                            milestone[k] = new_val
+                            changed = True
+
+                if changed:
+                    _write_json_atomic(PROJECT_PANEL_PATH, pp)
+
+                self._send_json(
+                    200,
+                    {
+                        "status": "ok",
+                        "id": milestone_id,
+                        "created": created,
+                        "changed": changed,
+                        "timestamp": _now_iso(),
+                    },
+                )
+                return
+
             if path == "/api/operator-notes":
                 # Atomic append to project-panel.json.operator_notes
                 _require_fields(payload, ["id", "priority", "message", "timestamp"])
