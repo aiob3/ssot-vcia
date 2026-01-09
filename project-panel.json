@@ -1,6 +1,19 @@
 {
   "ssot": "./.github/copilot-instructions.md",
-  "milestones": [],
+  "milestones": [
+    {
+      "id": "init-params-acceptance-tests",
+      "status": "done",
+      "summary": "Defined SSOT_INIT_PARAMS acceptance tests (EN) to reduce ambiguity and support smaller/cheaper models.",
+      "evidence": "runbook.json checkpoint ssot_init_params_acceptance",
+      "date": "2026-01-09"
+    }
+  ],
   "decisions_pending": [],
-  "evidences": []
+  "evidences": [
+    {
+      "date": "2026-01-09",
+      "item": "README.md includes SSOT_INIT_PARAMS (xml code block) + acceptance tests section; runbook.json includes checkpoint ssot_init_params_acceptance."
+    }
+  ]
 }
