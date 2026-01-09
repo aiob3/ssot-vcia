@@ -198,7 +198,8 @@ function renderRunbookCheckpoints(runbook) {
 
   runbookCheckpointsEl.innerHTML = cps
     .slice()
-    .sort((a, b) => String(b.id || '').localeCompare(String(a.id || '')))
+    // Natural order for IDs: ascending
+    .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')))
     .map(cp => {
       return `
       <div class="note">
