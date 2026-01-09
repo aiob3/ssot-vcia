@@ -1,5 +1,5 @@
 {
-  "ssot": "./copilot-agentinstruction.md",
+  "ssot": "./.github/copilot-instructions.md",
   "constraints": [],
   "decisions": [],
   "steps": [],
